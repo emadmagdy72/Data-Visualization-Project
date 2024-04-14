@@ -46,8 +46,9 @@ def kmeans_clustering(data, n_clusters):
     scatter_fig.update_layout(title="KMeans Clustering")
     return scatter_fig
 
-app = Dash()
 
+app = Dash()
+server = app.server
 app.layout = html.Div([
     html.H1("Clustering Dashboard", style={'textAlign': 'center', 'marginBottom': '20px'}),
     dcc.Dropdown(
@@ -160,5 +161,6 @@ def update_graph(selected_algorithm, k, eps, min_samples, n_clusters, linkage_ty
     elif selected_algorithm == 'kmeans':
         fig = kmeans_clustering(df,k)
         return fig  
+
 
 app.run_server()
