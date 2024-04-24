@@ -12,9 +12,12 @@ from dash.dependencies import Input, Output, State
 df_copy  = pd.read_csv('CC GENERAL.csv') 
 df = pd.read_csv("prepared_data.csv")
 df = df.drop(['Unnamed: 0'], axis=1)
-tsne = TSNE(n_components=2, perplexity=1, learning_rate=0.1, n_iter=250)
-X_tsne = tsne.fit_transform(df)
-df_tsne = pd.DataFrame(data=X_tsne, columns=['x', 'y'])
+# tsne = TSNE(n_components=2, perplexity=30, learning_rate=0.1, n_iter=2000)
+# X_tsne = tsne.fit_transform(df)
+# df_tsne = pd.DataFrame(data=X_tsne, columns=['t-SNE Component 1', 't-SNE Component 2'])
+# df_tsne.to_csv("tsne_data.csv",index=False)
+df_tsne = pd.read_csv('tsne_data.csv')
+print(df_tsne.head())
 input_style = {
     'margin-bottom': '10px'
 }
@@ -40,23 +43,18 @@ link_box_style = {
     'transition': 'background-color 0.3s'
 }
 def generate_percentage_bar_plot(df):
-    # Calculate the percentage of each category
     counts = df['TENURE'].value_counts(normalize=True) * 100
 
-    # Convert counts to DataFrame for plotting
     counts_df = counts.reset_index()
     counts_df.columns = ['TENURE', 'Percentage']
 
-    # Define custom color scale
     custom_color_scale = ['#87ceeb', '#87ceeb', '#87ceeb', '#87ceeb', '#87ceeb']
 
-    # Plot the countplot using Plotly
     fig = px.bar(counts_df, x='TENURE', y='Percentage', 
                  labels={'TENURE': 'TENURE', 'Percentage': 'Percentage'}, 
-                 title='Distribution of TENURE',
+                 title='What is the most common type of Tenure ?',
                  color_discrete_sequence=custom_color_scale)  # Set custom color scale
 
-    # Add percentage values to each bar
     for i, row in counts_df.iterrows():
         fig.add_annotation(x=row['TENURE'], y=row['Percentage'] + 2,
                            text=f"{row['Percentage']:.1f}%",
@@ -65,38 +63,32 @@ def generate_percentage_bar_plot(df):
     return fig
 
 def generate_histogram_like_plot(df, column_of_interest):
-    # Filter the selected data and drop NaN values
     selected_data = df[[column_of_interest]].dropna()
 
-    # Calculate the histogram
     counts, bins = np.histogram(selected_data[column_of_interest], bins=5, range=(0, 1))
     percentages = (counts / len(selected_data[column_of_interest])) * 100
 
-    # Create the bar plot using Plotly
     fig = go.Figure()
 
-    # Add bars for each bin
     for i in range(len(bins)-1):
         fig.add_trace(go.Bar(
-            x=[(bins[i] + bins[i+1]) / 2],  # Center of the bin
+            x=[(bins[i] + bins[i+1]) / 2],  
             y=[percentages[i]],
-            width=[(bins[i+1] - bins[i])],  # Width of the bin
+            width=[(bins[i+1] - bins[i])],  
             marker_color='skyblue'
         ))
 
-        # Add annotation for each bar
         fig.add_annotation(
-            x=(bins[i] + bins[i+1]) / 2,  # x-coordinate of the annotation
-            y=percentages[i],  # y-coordinate of the annotation
-            text=f"{percentages[i]:.1f}%",  # Text of the annotation
-            showarrow=False,  # Do not show arrow
-            font=dict(color='black', size=10),  # Font style of the annotation
-            xshift=0,  # Horizontal shift
-            yshift=5,  # Vertical shift
+            x=(bins[i] + bins[i+1]) / 2, 
+            y=percentages[i], 
+            text=f"{percentages[i]:.1f}%", 
+            showarrow=False,  
+            font=dict(color='black', size=10),  
+            xshift=0,  
+            yshift=5,  
         )
 
-    # Update layout
-    fig.update_layout(title=f'Histogram-like plot of {column_of_interest}',
+    fig.update_layout(title=f'What percentage of users frequently make one-off purchases ?',
                       xaxis=dict(title=column_of_interest, range=[0, 1]),
                       yaxis=dict(title='Percentage'),
                       showlegend=False)
@@ -107,7 +99,7 @@ def Agglomerative(n_clusters, linkage_type, metric_type, data):
     Agg = AgglomerativeClustering(
         n_clusters=n_clusters, linkage=linkage_type, metric=metric_type)
     cluster_labels = Agg.fit_predict(data)
-    fig_scatter = px.scatter(df_tsne, x="x", y="y", color=cluster_labels)
+    fig_scatter = px.scatter(df_tsne, x="t-SNE Component 1", y="t-SNE Component 2", color=cluster_labels)
     fig_scatter.update_layout(title="Agglomerative Hierarchical Clustering")
     return fig_scatter
 
@@ -115,7 +107,7 @@ def Agglomerative(n_clusters, linkage_type, metric_type, data):
 def dbscan(eps, no_samples, data):
     db_scan = DBSCAN(eps=eps, min_samples=no_samples).fit(data)
     labels = db_scan.labels_
-    scatter_fig = px.scatter(df_tsne, x="x", y="y", color=labels)
+    scatter_fig = px.scatter(df_tsne, x="t-SNE Component 1", y="t-SNE Component 2", color=labels)
     scatter_fig.update_layout(title="DBSCAN Clustering")
     return scatter_fig
 
@@ -124,30 +116,49 @@ def kmeans_clustering(data, n_clusters):
     kmeans = KMeans(n_clusters=n_clusters)
     kmeans.fit(data)
     labels = kmeans.labels_
-    scatter_fig = px.scatter(df_tsne, 'x', 'y', color=labels, size_max=10)
+    scatter_fig = px.scatter(df_tsne, 't-SNE Component 1', 't-SNE Component 2', color=labels, size_max=10)
     scatter_fig.update_layout(title="KMeans Clustering")
     return scatter_fig
 
 BS = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
 app = Dash(external_stylesheets=[BS], suppress_callback_exceptions=True)
-server = app.server
+server = app.server 
 
-# Home page layout with links to each clustering algorithm page
+
 home_layout = html.Div([
     html.Div([
 html.H1("Customer Segmentation - Credit Cards", style={'text-align': 'center'}),
     
     html.Div([
         html.Div([
-            html.H2("About the Project", style={'color': '#007bff'}),
+            html.H2("About The Project", style={'color': '#007bff'}),
             html.P(
                 "This project aims to develop a customer segmentation strategy for marketing purposes. "
                 "The dataset contains information about the usage behavior of approximately 9000 active credit card holders "
                 "over the last 6 months. By analyzing this data, we can identify distinct customer segments and tailor "
                 "marketing strategies accordingly.",className="mb-5"
             ),
+            html.H2("Business Goals",style={'color': '#007bff'}),
+            html.P(
+                "Extract meaningful patterns and insights from your customer data without relying on predefined labels or categories."
+                "By employing unsupervised learning techniques, you aim to group customers based on similarities in their behavior, preferences, or characteristics."
+                "This segmentation can then be utilized for various business purposes such as targeted marketing, personalized recommendations, product development, or optimizing service delivery."
+            ,className='mb-5'),
+            html.H2("Algorithms Used", style={'color': '#007bff'}),
+            html.Ul([
+                html.Li(
+                    "KMEANS"
+                ,className='mt-1'),
+                html.Li(
+                    "DBSCAN"
+                ,className='mt-1'),
+                    html.Li(
+                    "AGGLOMERATIVE"
+                ,className='mt-1'),
+            ],className="mb-5"
+            ),
             html.Img(
-                src="./assets/customer-segmentation-social.png",className='w-100 mt-5')
+                src="./assets/psychographics-8-importance-of-audience-segmentation-swipecart-blog-20-3-23.gif",className='w-100 mt-5')
         ], style=card_style),
         
         html.Div([
@@ -179,11 +190,10 @@ html.H1("Customer Segmentation - Credit Cards", style={'text-align': 'center'}),
     ], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center'}),
     
     
-    
+ 
 html.Div(
     [
-    html.H2("Analysis", className="mb-4", style={'text-align': 'center', 'color': '#007bff'}),
-    
+    html.H2("Explore Important Features", className="mb-4", style={'text-align': 'center', 'color': '#007bff'}),
     html.Div([
         html.Div([
             dcc.Graph(id='analysis-graph1', figure=generate_histogram_like_plot(df_copy, 'ONEOFF_PURCHASES_FREQUENCY'))
@@ -294,7 +304,6 @@ agglomerative_layout = html.Div([
 
 
 
-# Define DBSCAN Clustering layout
 dbscan_layout = html.Div([
     html.Div([
     html.H1("DBSCAN Clustering", className="mb-5", style={'text-align': 'center', 'color': '#007bff'}),
@@ -360,7 +369,6 @@ def display_page(pathname):
         return analysis_page_layout
     else:
         return home_layout  
-# Callback to update KMeans clustering graph based on input value
 
 
 
@@ -375,7 +383,6 @@ def update_kmeans_graph(k, pathname):
     else:
         return {}
 
-# Callback to update Agglomerative clustering graph based on input values
 @app.callback(
     Output('agglomerative-cluster-graph', 'figure'),
     [Input('n-clusters-input', 'value'),
