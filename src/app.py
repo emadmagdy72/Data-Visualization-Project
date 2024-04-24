@@ -130,7 +130,7 @@ def kmeans_clustering(data, n_clusters):
 
 BS = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
 app = Dash(external_stylesheets=[BS], suppress_callback_exceptions=True)
-
+server = app.server
 
 # Home page layout with links to each clustering algorithm page
 home_layout = html.Div([
